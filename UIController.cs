@@ -25,7 +25,7 @@ public class UIController : MonoBehaviour
             return;
         }
 
-        speedText.text = $"Speed: {jetController.speed:n0}";
+        speedText.text = $"Speed: {jetController.Speed:n0}";
         heightText.text = $"Height: {jetController.height:n0}";
         throttleText.text = $"Throttle: {jetController.throttle:n0}%";
 
