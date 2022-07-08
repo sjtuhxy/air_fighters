@@ -7,9 +7,15 @@ public class UIController : MonoBehaviour
 {
     public JetController jetController;
 
-    public Text speedText;
+    public Text v_valueText;
     public Text heightText;
-    public Text throttleText;
+    public Text pitchdotText;
+    public Text yawdottext;
+    public Text angletext;
+    public Text vdottext;
+    public Text vtext;
+    public Text rollangletext;
+    public Text tangload;
     public RectTransform crosshairs;
 
     private void Start()
@@ -25,9 +31,15 @@ public class UIController : MonoBehaviour
             return;
         }
 
-        speedText.text = $"Speed: {jetController.Speed:n0}";
+        v_valueText.text = $"v_value: {jetController.v_value:n0}";
         heightText.text = $"Height: {jetController.height:n0}";
-        throttleText.text = $"Throttle: {jetController.throttle:n0}%";
+        pitchdotText.text = $"pitchdot: {jetController.pitchdot:n0}";
+        yawdottext.text = $"yawdot:{jetController.yawdot:n0}";
+        angletext.text = $"pitch,yaw,roll:{jetController.angle:n0}";
+        vdottext.text = $"vdot:{jetController.vdot:n0}";
+        vtext.text = $"v:{jetController.v:n0}";
+        rollangletext.text = $"rollangle:{jetController.rollangle:n0}";
+        tangload.text = $"tangload:{jetController.tangentialoverload:n0}";
 
         if (jetController.showCrosshairs)
         {
