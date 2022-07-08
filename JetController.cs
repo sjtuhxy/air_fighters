@@ -11,7 +11,7 @@ public class JetController : MonoBehaviour
 
     public float engineThrust = 10000f;
     public float pitchSpeed = 30f;
-    public float rollSpeed = 45f;
+    public float rollSpeed = 0.45f;
     public float yawSpeed = 25f;
     public float autoTurnAngle = 30f;
 
@@ -36,11 +36,37 @@ public class JetController : MonoBehaviour
     public float AfterBurner = 1.0f; //加力
     public float Weight = 62.6f;
     public float Sensitive = 1.0f; //灵敏度
-    public float MaxRollSpeed = 3.0f; //最大滚转速率
+    public float MaxRollSpeed = 0.000003f; //最大滚转速率
     public float MaxPitchSpeed = 1.6f; //最大俯仰速率
     public float MaxYawSpeed = 0.4f; //最大偏航速率
 
-   
+    //output text
+    public Vector3 lift;
+    public Vector3 angle;
+    public Quaternion rotation;
+    public Vector3 v;
+    public float v_value = 10;
+    public Quaternion mainrot;
+
+
+    private float normaloverload = 0f;
+    public float tangentialoverload = 0f;
+    public float rollangle = 0f;
+    public float pitchangle = 0f;
+    public float yawangle = 0f;
+    public float vdot;
+    public float pitchdot;
+    public float yawdot;
+    public bool rollflag = false;
+    public bool pitchflag = false;
+
+    public bool airturnflag = false;
+    public bool airriseflag = false;
+
+
+    private float turn = 0;
+    private float delta = 0;
+    private Vector2 aix = new Vector2(0, 0);
 
 
     public bool startInAir;
@@ -91,20 +117,20 @@ public class JetController : MonoBehaviour
 
         if (autoTakeOff)
             thrust = 100f;
+        transform.position = new Vector3(0, 1000, 0);
     }
 
     void Update()
     {
         //Clear out old values
-        pitch = 0f;
-        roll = 0f;
-        yaw = 0f;
-        float turn = 0;
-        float delta = 0;
-        Vector2 aix = new Vector2(0,0);
+        //pitch = 0f;
+        //roll = 0f;
+        //yaw = 0f;
+
 
         //Update control surfaces
-        if (Input.GetKey(KeyCode.A)) turn = -1f;
+
+        /*if (Input.GetKey(KeyCode.A)) turn = -1f;
         if (Input.GetKey(KeyCode.D)) turn = 1f;
 
         if (Input.GetKey(KeyCode.UpArrow)) aix.y = 1f;
@@ -114,13 +140,87 @@ public class JetController : MonoBehaviour
 
         if (Input.GetKey(KeyCode.W)) delta = 1f;
         if (Input.GetKey(KeyCode.S)) delta = -1f;
+        */
 
-        CheckAutoTakeoff();
-        UpdateThrottle();
+        if (Input.GetKey(KeyCode.Alpha1))
+        {
+            normaloverload = 10f;
+            tangentialoverload = 0f;
+
+
+        }
+
+        if (Input.GetKey(KeyCode.Alpha2))
+        {
+            /*   if (pitchangle == 0)
+               {
+                   pitchflag = false;
+               }
+               if (pitchflag == false)
+               {
+                   tangentialoverload = Mathf.Cos(3.14f * pitchangle / 180) / Mathf.Cos(3.14f * rollangle / 180) - 100f;
+               }
+               if (pitchangle < -30)
+               {
+                   pitchflag = true;
+               }
+               if (pitchflag == true)
+               {
+                   tangentialoverload = Mathf.Cos(3.14f * pitchangle / 180) / Mathf.Cos(3.14f * rollangle / 180) + 100f;
+
+               }
+               */
+            airriseflag = true;
+            pitchflag = false;
+            normaloverload = 0f;
+
+
+        }
+        if (Input.GetKey(KeyCode.Alpha3))
+        {
+            /*if (rollangle == 0)
+            {
+                rollflag = false;
+            }
+            if (rollflag == false)
+            {
+                rollangle = Mathf.Clamp(rollangle - 5 * Time.deltaTime, -30f, 30f);
+            }
+            if (rollangle == 30f || rollangle == -30f)
+            {
+                rollflag = true;
+            }
+
+            if (rollflag == true)
+            {
+                //rollangle = 5f * v_value / (GravityAcc * tangentialoverload) * yawdot;
+                rollangle = Mathf.Clamp(rollangle + 5 * Time.deltaTime, -30f, 0f);
+            }
+            */
+            airturnflag = true;
+            rollflag = false;
+            normaloverload = 0f;
+        }
+
+        if (airriseflag)
+        {
+            airrise();
+        }
+        if (airturnflag)
+        {
+            airturn();
+        }
+
+        getdot();
+        updateangle();
+
         UpdateCamera();
-        AxisControl(aix);
+
+
+        /*AxisControl(aix);
         TurnControl(turn);
         SpeedUp(delta); 
+        */
 
         //if (enableMouseControls) CheckMouseControls();
 
@@ -131,7 +231,7 @@ public class JetController : MonoBehaviour
             RetractLandingGears();
 
         //if (landingGearsRetracted && !enableMouseControls)
-          //  SetupMouseControls();
+        //  SetupMouseControls();
     }
 
     void RetractLandingGears()
@@ -143,56 +243,14 @@ public class JetController : MonoBehaviour
         }
     }
 
-    void CheckAutoTakeoff()
-    {
-        if (!autoTakeOff || landingGearsRetracted) return;
-        if (rb.velocity.magnitude > 100f)
-            pitch = -1f;
-    }
 
-    void UpdateThrottle()
-    {
-        if (Input.GetKeyDown(KeyCode.Alpha1)) thrust = 30f;
-        if (Input.GetKeyDown(KeyCode.Alpha2)) thrust = 60f;
-        if (Input.GetKeyDown(KeyCode.Alpha3)) thrust = 100f;
-        if (Input.GetKeyDown(KeyCode.Alpha4)) thrust = 0f;
-
-        if (Input.GetKey(KeyCode.O)) thrust += 10f;
-        if (Input.GetKey(KeyCode.I)) thrust -= -10f;
-
-        thrust = Mathf.Clamp(thrust, 0f, 100f);
-    }
 
     void UpdateCamera()
     {
         mainCamera.updatePosition(Input.GetAxisRaw("Mouse X"), -Input.GetAxisRaw("Mouse Y"));
     }
 
-    /*void CheckMouseControls()
-    {
-        var localTarget = transform.InverseTransformDirection(cam.transform.forward).normalized * 5f;
-        var targetRollAngle = Mathf.Lerp(0f, autoTurnAngle, Mathf.Abs(localTarget.x));
-        if (localTarget.x > 0f) targetRollAngle *= -1f;
 
-        var rollAngle = FindAngle(jetMesh.transform.localEulerAngles.z);
-        var newAngle = targetRollAngle - rollAngle;
-
-        pitch = -Mathf.Clamp(localTarget.y, -1f, 1f);
-        roll = Mathf.Clamp(newAngle, -1f, 1f);
-        yaw = Mathf.Clamp(localTarget.x, -1f, 1f);
-    }
-
-    float FindAngle(float v)
-    {
-        if (v > 180f) v -= 360f;
-        return v;
-    }
-
-    void SetupMouseControls()
-    {
-        showCrosshairs = true;
-        enableMouseControls = true;
-    }*/
 
     private void FixedUpdate()
     {
@@ -201,28 +259,47 @@ public class JetController : MonoBehaviour
         Quaternion AddRot = Quaternion.identity;
         //Vector3 velocityTarget = Vector3.zero;
         Quaternion VelocityRot = Quaternion.identity;
+        /*
         Vector3 Gravity = -Mess * GravityAcc * Vector3.up;
         Vector3 Lift = Vector3.zero;//升力
         Vector3 Tail = Vector3.zero;//垂直尾翼的作用
         Vector3 Drag = Vector3.zero;//阻力
         Vector3 Push = Vector3.zero;//推力
-        Vector3 velocity = GetComponent<Rigidbody>().velocity; //速度矢量
+        */
+        //Vector3 velocity = rb.velocity; //速度矢量
         //姿态控制
         //{
         //VelocityRot.eulerAngles = velocity;//
-        roll = Aileron;
-        pitch = (3.1416f * (Vector3.Angle(velocity, GetComponent<Rigidbody>().rotation * Vector3.up) - 90) / 180.0f + Elevator);
-        yaw = -(3.1416f * (Vector3.Angle(velocity, GetComponent<Rigidbody>().rotation * Vector3.right) - 90) / 180.0f - Rudder);
+        /*roll = Aileron;
+        pitch = (3.1416f * (Vector3.Angle(velocity, rb.rotation * Vector3.up) - 90) / 180.0f + Elevator);
+        yaw = -(3.1416f * (Vector3.Angle(velocity, rb.rotation * Vector3.right) - 90) / 180.0f - Rudder);
+        */
+        roll = rollangle;
+        pitch = pitchangle;
+        yaw = yawangle;
         AddRot.eulerAngles = new Vector3(pitch, yaw, -roll);
-        mainRot *= AddRot;
+        mainRot = AddRot;
+        angle = new Vector3(pitch, yaw, -roll);
         //mainRot = VelocityRot * AddRot;
-        GetComponent<Rigidbody>().rotation = Quaternion.Lerp(GetComponent<Rigidbody>().rotation, mainRot, Time.fixedDeltaTime * RotationSpeed);
+        rb.rotation = Quaternion.Lerp(rb.rotation, mainRot, Time.fixedDeltaTime * RotationSpeed);
+        rotation = rb.rotation;
+        mainrot = mainRot;
+
         //}
 
+        /*
+        transform.RotateAround(transform.position, transform.up, yaw * Time.fixedDeltaTime * yawSpeed);     //Yaw
+
+        transform.RotateAround(transform.position, transform.forward, roll * Time.fixedDeltaTime * rollSpeed);     //Roll
+
+        //if (rb.velocity.magnitude > 100f)
+        transform.RotateAround(transform.position, transform.right, pitch * Time.fixedDeltaTime * pitchSpeed);     //Pitch
+        */
+
         //升力计算
-        //{
+        /*{
         Speed = velocity.magnitude;
-        float WingAngle = WingAngle0 + Vector3.Angle(velocity, GetComponent<Rigidbody>().rotation * Vector3.up) - 90.0f; //机翼迎角
+        float WingAngle = WingAngle0 + Vector3.Angle(velocity, rb.rotation * Vector3.up) - 90.0f; //机翼迎角
         if (Speed < StallSpeed)
         {
             Lift = Vector3.zero;
@@ -235,15 +312,16 @@ public class JetController : MonoBehaviour
         }
         else
         {
-            Lift = GetComponent<Rigidbody>().rotation * Vector3.up * LiftCoef * Speed * Speed * (WingAngle * 3.1416f / 180.0f);
+            Lift = rb.rotation * Vector3.up * LiftCoef * Speed * Speed * (WingAngle * 3.1416f / 180.0f);
             Stall = false;
         }
         //}
+        lift = Lift;
 
         //垂直尾翼的作用
         //{
-        float TailAngle = Rudder + Vector3.Angle(velocity, GetComponent<Rigidbody>().rotation * Vector3.right) - 90.0f;
-        Tail = GetComponent<Rigidbody>().rotation * Vector3.right * LiftCoef / 20.0f * Speed * Speed * (TailAngle * 3.1416f / 180.0f);
+        float TailAngle = Rudder + Vector3.Angle(velocity, rb.rotation * Vector3.right) - 90.0f;
+        Tail = rb.rotation * Vector3.right * LiftCoef / 20.0f * Speed * Speed * (TailAngle * 3.1416f / 180.0f);
         //}
 
         //阻力计算
@@ -254,13 +332,16 @@ public class JetController : MonoBehaviour
 
         //推力计算
         //{
-        Push = AfterBurner * EnginePower * throttle * (GetComponent<Rigidbody>().rotation * Vector3.forward);
+        Push = AfterBurner * EnginePower * throttle * (rb.rotation * Vector3.forward);
         //}
 
         //动力学方程
         //{
         velocity += (Lift + Tail + Drag + Push + Gravity) / Weight * Time.deltaTime;
-        GetComponent<Rigidbody>().velocity = velocity;
+        */
+        rb.velocity = rb.rotation * Vector3.forward * v_value;
+        v_value = rb.velocity.magnitude;
+        v = rb.velocity;
         //}
     }
 
@@ -270,16 +351,19 @@ public class JetController : MonoBehaviour
         crosshairPosition = cam.WorldToScreenPoint(transform.position + (transform.forward * 500f));
     }
 
-    void AxisControl(Vector2 axis)
+    /*void AxisControl(Vector2 axis)
     {
         Aileron = Mathf.Clamp(axis.x * Sensitive * MaxRollSpeed, -MaxRollSpeed, MaxRollSpeed); //滚转控制
         Elevator = Mathf.Clamp(axis.y * Sensitive * MaxPitchSpeed, -MaxPitchSpeed, MaxPitchSpeed); //俯仰控制
+        //roll = Mathf.Clamp(axis.x * Sensitive * MaxRollSpeed, -MaxRollSpeed, MaxRollSpeed);
+        //pitch = Mathf.Clamp(axis.y * Sensitive * MaxPitchSpeed, -MaxPitchSpeed, MaxPitchSpeed);
     }
     // Input function ( yaw) 
     void TurnControl(float turn)
     {
-        float YawGain = Sensitive * 60 * Time.deltaTime;
+        float YawGain = Sensitive * 30 * Time.deltaTime;
         Rudder = Mathf.Clamp(turn * YawGain, -MaxYawSpeed, MaxYawSpeed); //方向舵控制
+        //yaw = Mathf.Clamp(turn * YawGain, -MaxYawSpeed, MaxYawSpeed);
     }
     // Speed up
     void SpeedUp(float delta)
@@ -295,5 +379,75 @@ public class JetController : MonoBehaviour
         }
 
         thrust = Mathf.Clamp(throttle, 0, 100);
+    }*/
+
+    void getdot()
+    {
+        vdot = GravityAcc * (normaloverload - Mathf.Sin(3.14f * pitchangle / 180));
+        pitchdot = (GravityAcc / (v_value + 1)) * (tangentialoverload * Mathf.Cos(3.14f * rollangle / 180) - Mathf.Cos(3.14f * pitchangle / 180));
+        //pitchdot = 1;
+        yawdot = 10 * (GravityAcc / ((v_value + 1) * Mathf.Cos(3.14f * pitchangle / 180))) * tangentialoverload * Mathf.Sin(3.14f * rollangle / 180);
+        //yawdot = 1;
+
     }
+
+    void updateangle()
+    {
+        v_value = v_value + vdot * Time.deltaTime;
+        pitchangle = pitchangle + pitchdot * Time.deltaTime;
+        yawangle = yawangle + yawdot * Time.deltaTime * 50f;
+    }
+
+    void airturn()
+    {
+        if (rollflag == false)
+        {
+            rollangle = Mathf.Clamp(rollangle - 5 * Time.deltaTime, -20f, 20f);
+        }
+        if (rollangle == 20f || rollangle == -20f)
+        {
+            rollflag = true;
+        }
+
+        if (rollflag == true)
+        {
+            //rollangle = 5f * v_value / (GravityAcc * tangentialoverload) * yawdot;
+            rollangle = Mathf.Clamp(rollangle + 5 * Time.deltaTime, -20f, 0f);
+            if(rollangle == 0f)
+            {
+                airturnflag = false;
+                tangentialoverload = 0f;
+                return;
+            }
+        }
+
+        tangentialoverload = 10 / Mathf.Cos(3.14f * rollangle / 180);
+        normaloverload = 0f;
+    }
+
+    void airrise()
+    {
+        if (pitchflag == false)
+        {
+            tangentialoverload = Mathf.Cos(3.14f * pitchangle / 180) / Mathf.Cos(3.14f * rollangle / 180) - 200f;
+        }
+        if (pitchangle < -30)
+        {
+            pitchflag = true;
+        }
+        if (pitchflag == true)
+        {
+            tangentialoverload = Mathf.Cos(3.14f * pitchangle / 180) / Mathf.Cos(3.14f * rollangle / 180) + 200f;
+            if(pitchangle >= 0)
+            {
+                tangentialoverload = 0f;
+                airriseflag = false;
+                return ;
+            }
+        }
+
+
+        normaloverload = 0f;
+    }
+
 }
